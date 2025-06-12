@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RNN Music Generation: The Complete Guide</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 0 20px;
+            background-color: #f8f9fa;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #1a2533;
+        }
+
+        h1 {
+            text-align: center;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 10px;
+            margin-top: 40px;
+        }
+
+        h3 {
+            color: #0056b3;
+        }
+
+        code {
+            font-family: "SF Mono", "Menlo", "Courier New", Courier, monospace;
+        }
+
+        pre {
+            background-color: #1a2533;
+            color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .container {
+            background-color: #ffffff;
+            padding: 30px 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .step {
+            margin-bottom: 40px;
+        }
+
+        .intuition {
+            background-color: #e9f7ff;
+            border-left: 5px solid #007bff;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .libraries {
+            font-style: italic;
+            color: #6c757d;
+        }
+
+        hr {
+            border: 0;
+            height: 1px;
+            background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0));
+            margin: 50px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>🎵 RNN Music Generation: The Complete Guide (Intuition + Code) 🎵</h1>
+        <p>This guide breaks down the process of training a Recurrent Neural Network (RNN) to generate music, combining
+            the high-level intuition with the essential code for each stage.</p>
+
+        <hr>
+
+        <h2>Part 1: Teaching the Model (Training)</h2>
+        <p>Think of this phase as teaching a student who has never heard music before. We need to provide them with
+            learning materials and a method to improve.</p>
+
+        <div class="step">
+            <h3>Step 1: Learning the Alphabet 📖</h3>
+            <div class="intuition">
+                <p>Before the student can read music, they need to learn the alphabet. We show them every character in
+                    our song library (the <code>vocab</code>) and give them a dictionary (<code>char2idx</code>) to
+                    translate each character into a unique number. This is how the machine learns to read the language
+                    of music.</p>
+            </div>
+            <h4>Main Code:</h4>
+            <pre><code># Load songs from the library
+songs = mdl.lab1.load_training_data()
+
+# Join all songs into a single text block
+songs_joined = "\n\n".join(songs)
+
+# Find all unique characters to create the vocabulary
+vocab = sorted(set(songs_joined))</code></pre>
+            <p class="libraries"><strong>Main Libraries:</strong> mitdeeplearning, numpy</p>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Vectorization (Text to Numbers)</h3>
+            <div class="intuition">
+                <p>Now we use the dictionary created in the last step to translate the entire library of songs from
+                    characters into a long sequence of numbers. This numerical text is the only thing our model will
+                    ever "read".</p>
+            </div>
+            <h4>Main Code:</h4>
+            <pre><code># Create a mapping from a character to its unique index
+char2idx = {u: i for i, u in enumerate(vocab)}
+
+# Create an inverse mapping from an index back to a character
+idx2char = np.array(vocab)
+
+# Define and use a function to convert the entire string to numbers
+def vectorize_string(string):
+  return np.array([char2idx[char] for char in string])
+
+vectorized_songs = vectorize_string(songs_joined)</code></pre>
+            <p class="libraries"><strong>Main Libraries:</strong> numpy</p>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Creating the Lesson Plan (Batches)</h3>
+            <div class="intuition">
+                <p>We create small "flashcards" for our student. Each flashcard is a short sequence of notes (the
+                    <code>input_batch</code>) and the correct "answer" is the same sequence shifted one character
+                    forward (the <code>output_batch</code>). This teaches the student the fundamental task: "Given this,
+                    what comes next?"</p>
+            </div>
+            <h4>Main Code:</h4>
+            <pre><code>def get_batch(vectorized_songs, seq_length, batch_size):
+    # ... (randomly select starting points)
+    # Create the input sequences
+    input_batch = [vectorized_songs[i : i + seq_length] for i in idx]
+
+    # Create the target sequences (shifted by one)
+    output_batch = [vectorized_songs[i + 1 : i + 1 + seq_length] for i in idx]
+    
+    # Convert to PyTorch tensors
+    x_batch = torch.tensor(input_batch, dtype=torch.long)
+    y_batch = torch.tensor(output_batch, dtype=torch.long)
+    return x_batch, y_batch</code></pre>
+            <p class="libraries"><strong>Main Libraries:</strong> numpy, torch</p>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Building the Student's Brain 🧠</h3>
+            <div class="intuition">
+                <p>Here we design the model's architecture. The <strong>Embedding layer</strong> develops a rich
+                    understanding of each character. The <strong>LSTM layer</strong> acts as a short-term memory,
+                    keeping track of context. The <strong>Linear layer</strong> makes the final decision about which
+                    character to predict next.</p>
+
+            </div>
+            <h4>Main Code:</h4>
+            <pre><code>class LSTMModel(nn.Module):
+    def __init__(self, vocab_size, embedding_dim, hidden_size):
+        super(LSTMModel, self).__init__()
+        self.embedding = nn.Embedding(vocab_size, embedding_dim)
+        self.lstm = nn.LSTM(embedding_dim, hidden_size, batch_first=True)
+        self.fc = nn.Linear(hidden_size, vocab_size)
+
+    def forward(self, x, state=None, return_state=False):
+        x = self.embedding(x)
+        out, state = self.lstm(x, state)
+        out = self.fc(out)
+        return out if not return_state else (out, state)</code></pre>
+            <p class="libraries"><strong>Main Libraries:</strong> torch, torch.nn as nn</p>
+        </div>
+
+        <div class="step">
+            <h3>Step 5: Grading and Improving 🖍️</h3>
+            <div class="intuition">
+                <p>To learn, the student needs feedback. The <strong>Loss Function</strong> is the teacher's red pen
+                    that calculates a "mistake score". The <strong>Optimizer</strong> is the study strategy that tells
+                    the student how to adjust their thinking to make smaller mistakes in the future.</p>
+            </div>
+            <h4>Main Code:</h4>
+            <pre><code># Define the function to compute loss
+def compute_loss(labels, logits):
+    loss_fn = nn.CrossEntropyLoss()
+    batched_logits = logits.view(-1, logits.shape[2])
+    batched_labels = labels.view(-1)
+    return loss_fn(batched_logits, batched_labels)
+
+# Define the optimizer
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)</code></pre>
+            <p class="libraries"><strong>Main Libraries:</strong> torch, torch.nn as nn, torch.optim as optim</p>
+        </div>
+
+        <div class="step">
+            <h3>Step 6: The All-Night Study Session ☕</h3>
+            <div class="intuition">
+                <p>This is the main training loop where we repeatedly show the student flashcards (batches), grade their
+                    predictions (loss), and tell them how to improve (optimizer step). This is repeated thousands of
+                    times until the student becomes proficient.</p>
+            </div>
+            <h4>Main Code:</h4>
+            <pre><code>def train_step(x, y):
+    model.train()
+    optimizer.zero_grad()
+    y_hat = model(x)
+    loss = compute_loss(y, y_hat)
+    loss.backward()  # Compute gradients
+    optimizer.step()   # Update model weights
+    return loss
+
+# The actual loop that calls the train_step
+for iter in range(num_training_iterations):
+    x_batch, y_batch = get_batch(...)
+    x_batch = x_batch.to(device)
+    y_batch = y_batch.to(device)
+    loss = train_step(x_batch, y_batch)</code></pre>
+            <p class="libraries"><strong>Main Libraries:</strong> torch, tqdm</p>
+        </div>
+
+        <hr>
+
+        <h2>Part 2: The Student Composes (Inference)</h2>
+        <p>Now that the student is trained, it's time for them to use their knowledge to create something new.</p>
+
+        <div class="step">
+            <h3>Step 1: The Opening Bar 🌱</h3>
+            <div class="intuition">
+                <p>A composer can't start from a blank page; they need an idea or a prompt. We give our model a
+                    <code>start_string</code> to get it started. We also switch it to "evaluation mode" to turn off
+                    training-specific features.</p>
+            </div>
+            <h4>Main Code:</h4>
+            <pre><code>model.eval() # Set model to evaluation/inference mode
+start_string = "X:"
+input_idx = torch.tensor([[char2idx[s] for s in start_string]], dtype=torch.long).to(device)
+state = model.init_hidden(1, device)</code></pre>
+            <p class="libraries"><strong>Main Libraries:</strong> torch</p>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: The Creative Process ✨</h3>
+            <div class="intuition">
+                <p>The model generates music one note at a time. It takes the current context, predicts the next
+                    character, and then adds that new character to the context for predicting the next one. This is an
+                    <strong>autoregressive loop</strong>—like continuing its own train of thought.</p>
+            </div>
+            <h4>Main Code:</h4>
+            <pre><code>text_generated = []
+for i in range(generation_length):
+    # 1. Get predictions (logits) and the next hidden state
+    predictions, state = model(input_idx, state, return_state=True)
+    
+    # 2. Convert logits to probabilities using Softmax
+    probabilities = F.softmax(predictions[:, -1, :], dim=-1)
+    
+    # 3. Sample a character index from the probability distribution
+    input_idx = torch.multinomial(probabilities, num_samples=1)
+    
+    # 4. Save the result and use it as the next input
+    text_generated.append(idx2char[input_idx.item()])</code></pre>
+            <p class="libraries"><strong>Main Libraries:</strong> torch, torch.nn.functional as F, numpy</p>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Decoding and Playback 🎶</h3>
+            <div class="intuition">
+                <p>Finally, we take the list of generated numbers, convert them back to text using our dictionary
+                    (<code>idx2char</code>), and use helper functions to turn the text notation into a playable audio
+                    file so we can hear our model's creation.</p>
+            </div>
+            <h4>Main Code:</h4>
+            <pre><code># Join the start string with the list of generated characters
+generated_text = start_string + ''.join(text_generated)
+
+# Extract valid song snippets from the generated text
+generated_songs = mdl.lab1.extract_song_snippet(generated_text)
+
+# Loop through the snippets and play them
+for i, song in enumerate(generated_songs):
+  waveform = mdl.lab1.play_song(song)
+  if waveform:
+    ipythondisplay.display(waveform)</code></pre>
+            <p class="libraries"><strong>Main Libraries:</strong> mitdeeplearning, IPython.display</p>
+        </div>
+
+    </div>
+
+</body>
+
+</html>
